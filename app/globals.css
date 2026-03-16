@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+html {
+  font-size: 16px;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -8,19 +12,132 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--font-inter);
+  --font-mono: ui-monospace, monospace;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Main content container - balanced at 100% zoom */
+.app-container {
+  max-width: 1280px;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+}
+
+/* Sidebar nav: magic line + text underline (above/below on hover) */
+.sidebar-nav-underline {
+  position: relative;
+}
+.sidebar-nav-underline::before,
+.sidebar-nav-underline::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #22d3ee, #3b82f6, #6366f1);
+  border-radius: 1px;
+  width: 0;
+  transition: width 0.3s ease;
+}
+.sidebar-nav-underline::before {
+  top: 0;
+}
+.sidebar-nav-underline::after {
+  bottom: 0;
+}
+.sidebar-nav-underline:hover::before,
+.sidebar-nav-underline:hover::after {
+  width: 100%;
+}
+
+/* Hamburger menu animation (Gabriel Antonio style) */
+.sidebar-menu-label {
+  transform: translateY(8px) rotate(-90deg);
+  transform-origin: left center;
+}
+.group:hover .sidebar-menu-label {
+  transform: translateY(0) rotate(0deg);
+}
+
+/* Magic line navbar (Rock Starwind style) */
+.magic-line-nav .magic-line {
+  position: absolute;
+  bottom: 0;
+}
+
+/* Features table: default light grey rows, vertical color on hover with split animation */
+.features-table-row {
+  background-color: #f8fafc;
+  background-image:
+    linear-gradient(to right, var(--row-hover-color, #e2e8f0) 0%, var(--row-hover-color, #e2e8f0) 100%),
+    linear-gradient(to left, var(--row-hover-color, #e2e8f0) 0%, var(--row-hover-color, #e2e8f0) 100%);
+  background-size: 0% 100%, 0% 100%;
+  background-position: 0 0, 100% 0;
+  background-repeat: no-repeat;
+  transition: background-size 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.features-table-row:hover {
+  background-size: 50% 100%, 50% 100%;
+}
+
+/* Trash icon: brief bounce when row is being pulled in */
+.trash-icon-receiving {
+  transform: scale(1.2);
+  transition: transform 0.2s ease;
+}
+
+/* Features table: fixed layout, horizontal scroll, no compression */
+.features-table {
+  table-layout: fixed;
+  width: max-content;
+  min-width: 100%;
+}
+.features-table th,
+.features-table td {
+  padding: 10px 12px;
+  vertical-align: middle;
+  overflow: hidden;
+}
+.features-table-cell-left { text-align: left; }
+.features-table-cell-center { text-align: center; }
+.features-table-cell-feature {
+  white-space: normal;
+  word-break: break-word;
+  min-width: 320px;
+  max-width: 320px;
+}
+.features-table-row-deleting td {
+  background-color: rgba(254, 226, 226, 0.5) !important;
+  transform: translateX(120px) scale(0.8);
+  opacity: 0;
+  transition: background-color 0.15s ease, transform 0.7s ease, opacity 0.6s ease;
+  transform-origin: right center;
+}
+
+
+/* Dashboard summary cards: all-but-me blur effect */
+.stat-card-list:has(.stat-card:hover) .stat-card:not(:hover) {
+  filter: blur(4px);
+  transition: filter 0.3s ease;
+}
+.stat-card {
+  transition: filter 0.3s ease;
+}
+
+/* Developer link icon - subtle, smaller, stronger on hover */
+.developer-link svg {
+  width: 10px;
+  height: 10px;
+  opacity: 0.4;
+  transition: opacity 0.2s ease;
+}
+.developer-link:hover svg {
+  opacity: 0.8;
 }

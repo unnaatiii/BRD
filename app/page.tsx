@@ -1,65 +1,160 @@
-import Image from "next/image";
+import { getAllFeatures } from "@/lib/db";
+import StatCard from "@/components/StatCard";
+import FeatureTableNav from "@/components/FeatureTableNav";
+import {
+  FeaturesByMonthChart,
+  FeaturesByVerticalChart,
+  SuccessRateChart,
+  UsageScoreChart,
+} from "@/components/Charts";
+import Link from "next/link";
+import type { Feature } from "@/lib/types";
 
-export default function Home() {
+/** Week runs Monday–Saturday */
+function getWeekRange() {
+  const now = new Date();
+  const start = new Date(now);
+  const daysFromMonday = now.getDay() === 0 ? 6 : now.getDay() - 1;
+  start.setDate(now.getDate() - daysFromMonday);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 5); // Saturday = Monday + 5
+  end.setHours(23, 59, 59, 999);
+  return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
+}
+
+function getMonthRange() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return {
+    start: start.toISOString().slice(0, 10),
+    end: end.toISOString().slice(0, 10),
+  };
+}
+
+export default async function DashboardPage() {
+  const features = getAllFeatures();
+  const { start: weekStart, end: weekEnd } = getWeekRange();
+  const { start: monthStart, end: monthEnd } = getMonthRange();
+
+  const releasedThisWeek = features.filter(
+    (f) =>
+      f.status === "Released" &&
+      f.release_date &&
+      f.release_date >= weekStart &&
+      f.release_date <= weekEnd
+  );
+  const releasedThisMonth = features.filter(
+    (f) =>
+      f.status === "Released" &&
+      f.release_date &&
+      f.release_date >= monthStart &&
+      f.release_date <= monthEnd
+  );
+  const scopeChanged = features.filter((f) => f.scope_changed_after_release);
+  const scopeChangePct =
+    features.length > 0 ? Math.round((scopeChanged.length / features.length) * 100) : 0;
+
+  const released = features.filter((f) => f.status === "Released");
+  const hotFixes = released.filter((f) => (f.release_type || "NORMAL_RELEASE") === "HOT_FIX");
+  const hotFixPct = released.length > 0 ? Math.round((hotFixes.length / released.length) * 100) : 0;
+  const withSuccessRate = features.filter((f) => f.success_rate != null);
+  const avgSuccessRate =
+    withSuccessRate.length > 0
+      ? Math.round(
+          withSuccessRate.reduce((s, f) => s + (f.success_rate ?? 0), 0) / withSuccessRate.length
+        )
+      : 0;
+
+  const recentReleased = features
+    .filter((f) => f.status === "Released" && f.release_date)
+    .sort((a, b) => (b.release_date ?? "").localeCompare(a.release_date ?? ""))
+    .slice(0, 5);
+
+  const awaitingTesting = features.filter((f) => f.status === "Testing");
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-xl font-bold text-slate-900">Dashboard</h1>
+        <p className="text-sm text-slate-600">Product feature and BRD tracking overview</p>
+      </div>
+
+      <div className="stat-card-list grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
+        <StatCard
+          title="Total Features"
+          value={features.length}
+          href="/features"
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+        <StatCard
+          title="Released This Week"
+          value={releasedThisWeek.length}
+          href={`/features?status=Released&start_date=${weekStart}&end_date=${weekEnd}`}
+        />
+        <StatCard
+          title="Released This Month"
+          value={releasedThisMonth.length}
+          href={`/features?status=Released&start_date=${monthStart}&end_date=${monthEnd}`}
+        />
+        <StatCard
+          title="Scope Change %"
+          value={`${scopeChangePct}%`}
+          href="/features?scope_change=true"
+        />
+        <StatCard
+          title="Hot Fix %"
+          value={`${hotFixPct}%`}
+          href="/features?release_type=HOT_FIX"
+        />
+        <StatCard title="Avg Success Rate" value={`${avgSuccessRate}%`} />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <h3 className="mb-3 text-sm font-semibold text-slate-900">Features Released per Month</h3>
+          <FeaturesByMonthChart features={features} />
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <h3 className="mb-3 text-sm font-semibold text-slate-900">Features by Vertical</h3>
+          <FeaturesByVerticalChart features={features} />
         </div>
-      </main>
+        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <h3 className="mb-3 text-sm font-semibold text-slate-900">Success Rate by Vertical</h3>
+          <SuccessRateChart features={features} />
+        </div>
+        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <h3 className="mb-3 text-sm font-semibold text-slate-900">Usage Score by Vertical</h3>
+          <UsageScoreChart features={features} />
+        </div>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <h3 className="mb-3 text-sm font-semibold text-slate-900">Recent Features Released</h3>
+          <FeatureTableNav data={recentReleased} />
+          <div className="mt-4">
+            <Link
+              href="/features"
+              className="text-sm font-medium text-blue-600 hover:text-blue-800"
+            >
+              View all features →
+            </Link>
+          </div>
+        </div>
+        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <h3 className="mb-3 text-sm font-semibold text-slate-900">Features Awaiting Testing</h3>
+          <FeatureTableNav data={awaitingTesting} variant="testing" />
+          <div className="mt-4">
+            <Link
+              href="/features?status=Testing"
+              className="text-sm font-medium text-blue-600 hover:text-blue-800"
+            >
+              View all testing features →
+            </Link>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
